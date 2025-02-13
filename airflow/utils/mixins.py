@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 import multiprocessing
+import multiprocessing.context
 
 from airflow.configuration import conf
 
@@ -26,13 +29,18 @@ class MultiprocessingStartMethodMixin:
 
     def _get_multiprocessing_start_method(self) -> str:
         """
-        Determine method of creating new processes by checking if the
-        mp_start_method is set in configs, else, it uses the OS default.
+        Determine method of creating new processes.
+
+        Checks if the mp_start_method is set in configs, else, it uses the OS default.
         """
-        if conf.has_option('core', 'mp_start_method'):
-            return conf.get('core', 'mp_start_method')
+        if conf.has_option("core", "mp_start_method"):
+            return conf.get_mandatory_value("core", "mp_start_method")
 
         method = multiprocessing.get_start_method()
         if not method:
             raise ValueError("Failed to determine start method")
         return method
+
+    def _get_multiprocessing_context(self) -> multiprocessing.context.DefaultContext:
+        mp_start_method = self._get_multiprocessing_start_method()
+        return multiprocessing.get_context(mp_start_method)  # type: ignore

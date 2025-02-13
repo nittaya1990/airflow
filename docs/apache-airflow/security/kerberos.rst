@@ -18,27 +18,27 @@
 Kerberos
 --------
 
-Airflow has initial support for Kerberos. This means that Airflow can renew kerberos
-tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
+Airflow has initial support for Kerberos. This means that Airflow can renew Kerberos
+tickets for itself and store it in the ticket cache. The hooks and DAGs can make use of ticket
 to authenticate against kerberized services.
 
 Limitations
 '''''''''''
 
 Please note that at this time, not all hooks have been adjusted to make use of this functionality.
-Also it does not integrate kerberos into the web interface and you will have to rely on network
+Also it does not integrate Kerberos into the web interface and you will have to rely on network
 level security for now to make sure your service remains secure.
 
 Celery integration has not been tried and tested yet. However, if you generate a key tab for every
 host and launch a ticket renewer next to every worker it will most likely work.
 
-Enabling kerberos
+Enabling Kerberos
 '''''''''''''''''
 
 Airflow
 ^^^^^^^
 
-To enable kerberos you will need to generate a (service) key tab.
+To enable Kerberos you will need to generate a (service) key tab.
 
 .. code-block:: bash
 
@@ -61,7 +61,17 @@ your ``airflow.cfg``
     reinit_frequency = 3600
     principal = airflow
 
-If you need more granular options for your kerberos ticket the following options are available with the following default values:
+In case you are using Airflow in a docker container based environment,
+you can set the below environment variables in the ``Dockerfile`` instead of modifying ``airflow.cfg``
+
+.. code-block:: dockerfile
+
+    ENV AIRFLOW__CORE__SECURITY kerberos
+    ENV AIRFLOW__KERBEROS__KEYTAB /etc/airflow/airflow.keytab
+    ENV AIRFLOW__KERBEROS__INCLUDE_IP False
+
+
+If you need more granular options for your Kerberos ticket the following options are available with the following default values:
 
 .. code-block:: ini
 
@@ -90,6 +100,29 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
+To support more advanced deployment models for using kerberos in standard or one-time fashion,
+you can specify the mode while running the ``airflow kerberos`` by using the ``--one-time`` flag.
+
+a) standard: The airflow kerberos command will run endlessly. The ticket renewer process runs continuously every few seconds
+and refreshes the ticket if it has expired.
+b) one-time: The airflow kerberos will run once and exit. In case of failure the main task won't spin up.
+
+The default mode is standard.
+
+Example usages:
+
+For standard mode:
+
+.. code-block:: bash
+
+    airflow kerberos
+
+For one time mode:
+
+.. code-block:: bash
+
+    airflow kerberos --one-time
+
 Hadoop
 ^^^^^^
 
@@ -114,10 +147,10 @@ If want to use impersonation this needs to be enabled in ``core-site.xml`` of yo
 
 Of course if you need to tighten your security replace the asterisk with something more appropriate.
 
-Using kerberos authentication
+Using Kerberos authentication
 '''''''''''''''''''''''''''''
 
-The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to
+The Hive hook has been updated to take advantage of Kerberos authentication. To allow your DAGs to
 use it, simply update the connection details with, for example:
 
 .. code-block:: json
@@ -127,7 +160,7 @@ use it, simply update the connection details with, for example:
 Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
-You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
+You can specify if you would like to use the DAG owner as the user for the connection or the user specified in the login
 section of the connection. For the login user, specify the following as extra:
 
 .. code-block:: json
@@ -152,4 +185,4 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 
    pip install 'apache-airflow[kerberos]'
 
-You can read about some production aspects of kerberos deployment at :ref:`production-deployment:kerberos`
+You can read about some production aspects of Kerberos deployment at :ref:`production-deployment:kerberos`

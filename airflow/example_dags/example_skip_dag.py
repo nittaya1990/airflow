@@ -15,24 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
 
-"""Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
+from __future__ import annotations
 
-from datetime import datetime
+import datetime
+from typing import TYPE_CHECKING
 
-from airflow import DAG
+import pendulum
+
 from airflow.exceptions import AirflowSkipException
-from airflow.operators.dummy import DummyOperator
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
 
 
 # Create some placeholder operators
-class DummySkipOperator(DummyOperator):
-    """Dummy operator which always skips the task."""
+class EmptySkipOperator(BaseOperator):
+    """Empty operator which always skips the task."""
 
-    ui_color = '#e8b7e4'
+    ui_color = "#e8b7e4"
 
-    def execute(self, context):
+    def execute(self, context: Context):
         raise AirflowSkipException
 
 
@@ -44,16 +52,22 @@ def create_test_pipeline(suffix, trigger_rule):
     :param str trigger_rule: TriggerRule for the join task
     :param DAG dag_: The DAG to run the operators on
     """
-    skip_operator = DummySkipOperator(task_id=f'skip_operator_{suffix}')
-    always_true = DummyOperator(task_id=f'always_true_{suffix}')
-    join = DummyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
-    final = DummyOperator(task_id=f'final_{suffix}')
+    skip_operator = EmptySkipOperator(task_id=f"skip_operator_{suffix}")
+    always_true = EmptyOperator(task_id=f"always_true_{suffix}")
+    join = EmptyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
+    final = EmptyOperator(task_id=f"final_{suffix}")
 
     skip_operator >> join
     always_true >> join
     join >> final
 
 
-with DAG(dag_id='example_skip_dag', start_date=datetime(2021, 1, 1), catchup=False, tags=['example']) as dag:
-    create_test_pipeline('1', TriggerRule.ALL_SUCCESS)
-    create_test_pipeline('2', TriggerRule.ONE_SUCCESS)
+with DAG(
+    dag_id="example_skip_dag",
+    schedule=datetime.timedelta(days=1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+) as dag:
+    create_test_pipeline("1", TriggerRule.ALL_SUCCESS)
+    create_test_pipeline("2", TriggerRule.ONE_SUCCESS)

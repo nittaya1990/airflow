@@ -15,83 +15,306 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
-  provider:Google:
-    - airflow/providers/google/**/*
-    - docs/apache-airflow-providers-google/**/*
-    - tests/providers/google/**/*
+  provider:airbyte:
+    - providers/airbyte/**
 
-  provider:AWS:
-    - airflow/providers/amazon/aws/**/*
-    - tests/providers/amazon/aws/**/*
-    - docs/apache-airflow-providers-amazon/**/*
+  provider:alibaba:
+    - providers/alibaba/**
 
-  provider:Azure:
-    - airflow/providers/microsoft/azure/**/*
-    - tests/providers/microsoft/azure/**/*
-    - docs/apache-airflow-providers-microsoft-azure/**/*
+  provider:amazon:
+    - providers/amazon/**
 
-  provider:Apache:
-    - airflow/providers/apache/**/*
-    - docs/apache-airflow-providers-apache-*/**/*
-    - tests/providers/apache/**/*
+  provider:apache-beam:
+    - providers/apache/beam/**
 
-  provider:Snowflake:
-    - airflow/providers/snowflake/**/*
-    - docs/apache-airflow-providers-snowflake/**/*
-    - tests/providers/snowflake/**/*
+  provider:apache-cassandra:
+    - providers/apache/cassandra/**
 
-  area:providers:
-    - airflow/providers/**/*
-    - docs/apache-airflow-providers-*/**/*
-    - tests/providers/**/*
+  provider:apache-drill:
+    - providers/apache/drill/**
 
-  area:kubernetes:
-    - airflow/**/kubernetes_*.py
-    - airflow/example_dags/example_kubernetes_executor.py
-    - airflow/example_dags/example_kubernetes_executor_config.py
-    - airflow/providers/cncf/kubernetes/**/*
-    - airflow/kubernetes/**/*
-    - airflow/kubernetes_executor_templates/**/*
-    - airflow/executors/kubernetes_executor.py
-    - airflow/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/executor/kubernetes.rst
-    - docs/apache-airflow/executor/celery_kubernetes.rst
-    - docs/apache-airflow-providers-cncf-kubernetes/**/*
-    - kubernetes_tests/**/*
+  provider:apache-druid:
+    - providers/apache/druid/**
+
+  provider:apache-flink:
+    - providers/apache/flink/**
+
+  provider:apache-hdfs:
+    - providers/apache/hdfs/**
+
+  provider:apache-hive:
+    - providers/apache/hive/**
+
+  provider:apache-iceberg:
+    - providers/apache/iceberg/**
+
+  provider:apache-impala:
+    - providers/apache/impala/**
+
+  provider:apache-kafka:
+    - providers/apache/kafka/**
+
+  provider:apache-kylin:
+    - providers/apache/kylin/**
+
+  provider:apache-livy:
+    - providers/apache/livy/**
+
+  provider:apache-pig:
+    - providers/apache/pig/**
+
+  provider:apache-pinot:
+    - providers/apache/pinot/**
+
+  provider:apache-spark:
+    - providers/apache/spark/**
+
+  provider:apprise:
+    - providers/apprise/**
+
+  provider:arangodb:
+    - providers/arangodb/**
+
+  provider:asana:
+    - providers/asana/**
+
+  provider:atlassian-jira:
+    - providers/atlassian/jira/**
+
+  provider:celery:
+    - providers/celery/**
+
+  provider:cloudant:
+    - providers/cloudant/**
+
+  provider:cncf-kubernetes:
+    - providers/cncf/kubernetes/**
+
+  provider:cohere:
+    - providers/cohere/**
+
+  provider:common-compat:
+    - providers/common/compat/**
+
+  provider:common-io:
+    - providers/common/io/**
+
+  provider:common-sql:
+    - providers/common/sql/**
+
+  provider:standard:
+    - providers/standard/**
+
+  provider:databricks:
+    - providers/databricks/**
+
+  provider:datadog:
+    - providers/datadog/**
+
+  provider:dbt-cloud:
+    - providers/dbt/cloud/**
+
+  provider:dingding:
+    - providers/dingding/**
+
+  provider:discord:
+    - providers/discord/**
+
+  provider:docker:
+    - providers/docker/**
+
+  provider:edge:
+    - providers/edge/**
+
+  provider:elasticsearch:
+    - providers/elasticsearch/**
+
+  provider:exasol:
+    - providers/exasol/**
+
+  provider:fab:
+    - providers/fab/**
+
+  provider:facebook:
+    - providers/facebook/**
+
+  provider:ftp:
+    - providers/ftp/**
+
+  provider:github:
+    - providers/github/**
+
+  provider:google:
+    - providers/google/**
+
+  provider:grpc:
+    - providers/grpc/**
+
+  provider:hashicorp:
+    - providers/hashicorp/**
+
+  provider:http:
+    - providers/http/**
+
+  provider:imap:
+    - providers/imap/**
+
+  provider:influxdb:
+    - providers/influxdb/**
+
+  provider:jdbc:
+    - providers/jdbc/**
+
+  provider:jenkins:
+    - providers/jenkins/**
+
+  provider:microsoft-azure:
+    - providers/microsoft/azure/**
+
+  provider:microsoft-mssql:
+    - providers/microsoft/mssql/**
+
+  provider:microsoft-psrp:
+    - providers/microsoft/psrp/**
+
+  provider:microsoft-winrm:
+    - providers/microsoft/winrm/**
+
+  provider:mongo:
+    - providers/mongo/**
+
+  provider:mysql:
+    - providers/mysql/**
+
+  provider:neo4j:
+    - providers/neo4j/**
+
+  provider:odbc:
+    - providers/odbc/**
+
+  provider:openai:
+    - providers/openai/**
+
+  provider:openfaas:
+    - providers/openfaas/**
+
+  provider:openlineage:
+    - providers/openlineage/**
+
+  provider:opensearch:
+    - providers/opensearch/**
+
+  provider:opsgenie:
+    - providers/opsgenie/**
+
+  provider:Oracle:
+    - providers/oracle/**
+
+  provider:pagerduty:
+    - providers/pagerduty/**
+
+  provider:papermill:
+    - providers/papermill/**
+
+  provider:pgvector:
+    - providers/pgvector/**
+
+  provider:pinecone:
+    - providers/pinecone/**
+
+  provider:postgres:
+    - providers/postgres/**
+
+  provider:presto:
+    - providers/presto/**
+
+  provider:qdrant:
+    - providers/qdrant/**
+
+  provider:redis:
+    - providers/redis/**
+
+  provider:salesforce:
+    - providers/salesforce/**
+
+  provider:samba:
+    - providers/samba/**
+
+  provider:segment:
+    - providers/segment/**
+
+  provider:sendgrid:
+    - providers/sendgrid/**
+
+  provider:sftp:
+    - providers/sftp/**
+
+  provider:singularity:
+    - providers/singularity/**
+
+  provider:slack:
+    - providers/slack/**
+
+  provider:smtp:
+    - providers/smtp/**
+
+  provider:snowflake:
+    - providers/snowflake/**
+
+  provider:sqlite:
+    - providers/sqlite/**
+
+  provider:ssh:
+    - providers/ssh/**
+
+  provider:tableau:
+    - providers/tableau/**
+
+  provider:telegram:
+    - providers/telegram/**
+
+  provider:teradata:
+    - providers/teradata/**
+
+  provider:trino:
+    - providers/trino/**
+
+  provider:vertica:
+    - providers/vertica/**
+
+  provider:weaviate:
+    - providers/weaviate/**
+
+  provider:yandex:
+    - providers/yandex/**
+
+  provider:ydb:
+    - providers/ydb/**
+
+  provider:zendesk:
+    - providers/zendesk/**
 
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/**/*
     - clients/**/*
-    - docs/apache-airflow/deprecated-rest-api-ref.rst
     - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/**/*
 
   area:dev-tools:
-    - airflow/mypy/**/*
     - scripts/**/*
     - dev/**/*
     - .github/**/*
-    - breeze
     - Dockerfile.ci
-    - BREEZE.rst
-    - breeze-complete
-    - confirm
-    - CONTRIBUTING.*
-    - LOCAL_VIRTUALENV.rst
-    - STATIC_CODE_CHECKS.rst
-    - TESTING.rst
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
     - yamllint-config.yml
     - .asf.yaml
     - .bash_completion
     - .dockerignore
-    - .flake8
     - .hadolint.yaml
     - .pre-commit-config.yaml
     - .rat-excludes
@@ -109,9 +332,9 @@ labelPRBasedOnFilePath:
     - docs/helm-chart/**
 
   area:Webserver:
-    - airflow/cli/commands/webserver_command.py
+    - airflow/cli/commands/local_commands/webserver_command.py
     - airflow/www/**/*
-    - tests/cli/commands/test_webserver_command.py
+    - tests/cli/commands/local_commands/test_webserver_command.py
     - tests/www/**/*
 
   area:UI:
@@ -121,7 +344,6 @@ labelPRBasedOnFilePath:
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
-    - airflow/www/compile_assets.sh
     - airflow/www/package.json
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
@@ -132,50 +354,66 @@ labelPRBasedOnFilePath:
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
     - docs/apache-airflow/cli-and-env-variables-ref.rst
-    - docs/apache-airflow/usage-cli.rst
+    - docs/apache-airflow/howto/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
     - tests/lineage/**/*
-    - docs/apache-airflow/lineage.rst
+    - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
-    - airflow/providers/**/log/*
     - airflow/utils/log/**/*
-    - docs/apache-airflow/logging-monitoring/logging-*.rst
-    - tests/providers/**/log/*
+    - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
     - tests/utils/log/**/*
+    - providers/**/log/*
 
   area:Plugins:
-    - airflow/cli/commands/plugins_command.py
+    - airflow/cli/commands/local_commands/plugins_command.py
     - airflow/plugins_manager.py
-    - tests/cli/commands/test_plugins_command.py
+    - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/plugins.rst
+    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
-  area:Scheduler/Executor:
-    - airflow/executors/**/*
-    - airflow/jobs/**/*
-    - airflow/task/task_runner/**/*
+  area:Scheduler:
+    - airflow/jobs/scheduler_job_runner.py
+    - airflow/task/standard_task_runner.py
+    - docs/apache-airflow/administration-and-deployment/scheduler.rst
+    - tests/jobs/test_scheduler_job.py
+
+  area:DAG-processing:
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/executor/**/*
-    - docs/apache-airflow/concepts/scheduler.rst
+    - airflow/jobs/dag_processor_job_runner.py
+    - docs/apache-airflow/administration-and-deployment/dagfile-processing.rst
+    - tests/dag_processing/**/*
+
+  area:Executors-core:
+    - airflow/executors/**/*
+    - docs/apache-airflow/core-concepts/executor/**/*
     - tests/executors/**/*
-    - tests/jobs/**/*
 
   area:Secrets:
     - airflow/secrets/**/*
-    - airflow/providers/**/secrets/*
     - tests/secrets/**/*
-    - tests/providers/**/secrets/*
+    - providers/**/secrets/*
     - docs/apache-airflow/security/secrets/**/*
+
+  area:Triggerer:
+    - airflow/cli/commands/local_commands/triggerer_command.py
+    - airflow/jobs/triggerer_job_runner.py
+    - airflow/models/trigger.py
+    - providers/standard/src/airflow/providers/standard/triggers/**/*
+    - tests/cli/commands/local_commands/test_triggerer_command.py
+    - tests/jobs/test_triggerer_job.py
+    - tests/models/test_trigger.py
+    - tests/jobs/test_triggerer_job_logging.py
+    - providers/standard/tests/provider_tests/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*
     - airflow/models/serialized_dag.py
     - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
-    - docs/apache-airflow/dag-serialization.rst
+    - docs/apache-airflow/administration-and-deployment/dag-serialization.rst
 
   area:core-operators:
     - airflow/operators/**/*
@@ -190,9 +428,16 @@ labelPRBasedOnFilePath:
   area:production-image:
     - Dockerfile
     - docs/docker-stack/**/*
-    - scripts/in_container/prod/*
-    - scripts/ci/tools/verify_docker_image.sh
-    - scripts/ci/libraries/_verify_image.sh
+    - docker_tests/**/*
+
+  area:system-tests:
+    - tests/system/**/*
+
+  area:task-sdk:
+    - task_sdk/**/*
+
+  area:db-migrations:
+    - airflow/migrations/versions/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
@@ -206,12 +451,12 @@ labelerFlags:
 firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
-  Contribution Guide (https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst)
+  Contributors' Guide (https://github.com/apache/airflow/blob/main/contributing-docs/README.rst)
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (flake8, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
@@ -219,8 +464,8 @@ firstPRWelcomeComment: >
   [guide](https://github.com/apache/airflow/blob/main/docs/apache-airflow/howto/custom-operator.rst)
   Consider adding an example DAG that shows how users should use it.
 
-  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/BREEZE.rst) for testing
-  locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
+  for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
@@ -229,7 +474,10 @@ firstPRWelcomeComment: >
   communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
 
   - Be sure to read the [Airflow Coding style](
-  https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#coding-style-and-best-practices).
+  https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#coding-style-and-best-practices).
+
+  - Always keep your Pull Requests rebased, otherwise your build might fail due to changes not related
+  to your commits.
 
   Apache Airflow is a community-driven project and together we are making it better 🚀.
 
@@ -241,15 +489,14 @@ firstPRWelcomeComment: >
 
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >
-  Awesome work, congrats on your first merged pull request!
+  Awesome work, congrats on your first merged pull request! You are invited to check our
+  [Issue Tracker](https://github.com/apache/airflow/issues) for additional contributions.
 
 # Comment to be posted to on first time issues
 firstIssueWelcomeComment: >
   Thanks for opening your first issue here! Be sure to follow the issue template!
+  If you are willing to raise PR to address this issue please do so, no need to wait for approval.
 
 checkUpToDate:
   targetBranch: main
-  files:
-    - airflow/migrations/*
-    - airflow/migrations/**/*
-    - airflow/alembic.ini
+  files: []

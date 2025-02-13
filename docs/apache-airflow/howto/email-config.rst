@@ -29,11 +29,31 @@ in the ``[email]`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-You can configure sender's email address by setting ``from_email`` in the ``[email]`` section.
+Equivalent environment variables look like:
+
+.. code-block:: sh
+
+  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
+  AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
+  AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
+
+You can configure a sender's email address by setting ``from_email`` in the ``[email]`` section like:
+
+.. code-block:: ini
+
+  [email]
+  from_email = "John Doe <johndoe@example.com>"
+
+Equivalent environment variables look like:
+
+.. code-block:: sh
+
+  AIRFLOW__EMAIL__FROM_EMAIL="John Doe <johndoe@example.com>"
+
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
-connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with it's name in
+connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in
 the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
 from the configuration only. The connection can be of any type (for example 'HTTP connection').
 
@@ -65,11 +85,41 @@ For example a ``html_content_template`` file could look like this:
 Send email using SendGrid
 -------------------------
 
+Using Default SMTP
+^^^^^^^^^^^^^^^^^^
+
+You can use the default airflow SMTP backend to send email with SendGrid
+
+  .. code-block:: ini
+
+     [smtp]
+     smtp_host=smtp.sendgrid.net
+     smtp_starttls=False
+     smtp_ssl=False
+     smtp_port=587
+     smtp_mail_from=<your-from-email>
+
+Equivalent environment variables looks like
+
+  .. code-block::
+
+     AIRFLOW__SMTP__SMTP_HOST=smtp.sendgrid.net
+     AIRFLOW__SMTP__SMTP_STARTTLS=False
+     AIRFLOW__SMTP__SMTP_SSL=False
+     AIRFLOW__SMTP__SMTP_PORT=587
+     AIRFLOW__SMTP__SMTP_MAIL_FROM=<your-from-email>
+
+
+Using SendGrid Provider
+^^^^^^^^^^^^^^^^^^^^^^^
+
 Airflow can be configured to send e-mail using `SendGrid <https://sendgrid.com/>`__.
 
 Follow the steps below to enable it:
 
-1. Include ``sendgrid`` provider as part of your Airflow installation, e.g.,
+1. Setup your SendGrid account, The SMTP and copy username and API Key.
+
+2. Include ``sendgrid`` provider as part of your Airflow installation, e.g.,
 
   .. code-block:: bash
 
@@ -81,20 +131,34 @@ or
      pip install 'apache-airflow-providers-sendgrid' --constraint ...
 
 
-2. Update ``email_backend`` property in ``[email]`` section in ``airflow.cfg``, i.e.
+3. Update ``email_backend`` property in ``[email]`` section in ``airflow.cfg``, i.e.
 
    .. code-block:: ini
 
       [email]
       email_backend = airflow.providers.sendgrid.utils.emailer.send_email
       email_conn_id = sendgrid_default
+      from_email = "hello@eg.com"
 
-3. Create a connection called ``sendgrid_default``, or choose a custom connection
+   Equivalent environment variables looks like
+
+   .. code-block::
+
+      AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.providers.sendgrid.utils.emailer.send_email
+      AIRFLOW__EMAIL__EMAIL_CONN_ID=sendgrid_default
+      SENDGRID_MAIL_FROM=hello@thelearning.dev
+
+4. Create a connection called ``sendgrid_default``, or choose a custom connection
    name and set it in ``email_conn_id`` of  'Email' type. Only login and password
    are used from the connection.
 
-4. Configure sender's email address and name either by exporting the environment variables ``SENDGRID_MAIL_FROM`` and ``SENDGRID_MAIL_SENDER`` or
-   in your ``airflow.cfg`` by setting ``from_email`` in the ``[email]`` section.
+
+.. image:: ../img/email_connection.png
+    :align: center
+    :alt: create email connection
+
+.. note:: The callbacks for success, failure and retry will use the same configuration to send the email
+
 
 .. _email-configuration-ses:
 
@@ -118,8 +182,9 @@ Follow the steps below to enable it:
       [email]
       email_backend = airflow.providers.amazon.aws.utils.emailer.send_email
       email_conn_id = aws_default
+      from_email = From email <email@example.com>
+
+Note that for SES, you must configure from_email to the valid email that can send messages from SES.
 
 3. Create a connection called ``aws_default``, or choose a custom connection
    name and set it in ``email_conn_id``. The type of connection should be ``Amazon Web Services``.
-
-4. Configure sender's email address in your ``airflow.cfg`` by setting ``from_email`` in the ``[email]`` section.

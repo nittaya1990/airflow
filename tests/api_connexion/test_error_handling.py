@@ -14,26 +14,66 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import pytest
+
+pytestmark = pytest.mark.db_test
+
+
 def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
     client = minimal_app_for_api.test_client()
 
     # Given we have application with Connexion added
-    # When we hitting incorrect endpoint in API path
+    # When we are hitting incorrect endpoint in API path
 
-    resp_json = client.get("/api/v1/incorrect_endpoint").json
+    resp = client.get("/api/v1/incorrect_endpoint")
 
     # Then we have parsable JSON as output
 
-    assert 404 == resp_json["status"]
+    assert resp.json["title"] == "Not Found"
+    assert resp.json["status"] == 404
+    assert resp.status_code == 404
+
+
+def test_incorrect_endpoint_should_return_html(minimal_app_for_api):
+    client = minimal_app_for_api.test_client()
 
     # When we are hitting non-api incorrect endpoint
 
-    resp_json = client.get("/incorrect_endpoint").json
+    resp = client.get("/incorrect_endpoint")
 
     # Then we do not have JSON as response, rather standard HTML
 
-    assert resp_json is None
+    assert resp.json is None
+    assert resp.mimetype == "text/html"
+    assert resp.status_code == 404
 
-    resp_json = client.put("/api/v1/variables").json
 
-    assert 'Method Not Allowed' == resp_json["title"]
+def test_incorrect_method_should_return_json(minimal_app_for_api):
+    client = minimal_app_for_api.test_client()
+
+    # Given we have application with Connexion added
+    # When we are hitting incorrect HTTP method in API path
+
+    resp = client.put("/api/v1/version")
+
+    # Then we have parsable JSON as output
+
+    assert resp.json["title"] == "Method Not Allowed"
+    assert resp.json["status"] == 405
+    assert resp.status_code == 405
+
+
+def test_incorrect_method_should_return_html(minimal_app_for_api):
+    client = minimal_app_for_api.test_client()
+
+    # When we are hitting non-api incorrect HTTP method
+
+    resp = client.put("/")
+
+    # Then we do not have JSON as response, rather standard HTML
+
+    assert resp.json is None
+    assert resp.mimetype == "text/html"
+    assert resp.status_code == 405

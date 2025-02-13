@@ -15,39 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Set
+from enum import Enum
 
 
-class TriggerRule:
+class TriggerRule(str, Enum):
     """Class with task's trigger rules."""
 
-    ALL_SUCCESS = 'all_success'
-    ALL_FAILED = 'all_failed'
-    ALL_DONE = 'all_done'
-    ONE_SUCCESS = 'one_success'
-    ONE_FAILED = 'one_failed'
-    NONE_FAILED = 'none_failed'
-    NONE_FAILED_OR_SKIPPED = 'none_failed_or_skipped'
-    NONE_SKIPPED = 'none_skipped'
-    DUMMY = 'dummy'
-    ALWAYS = 'always'
+    ALL_SUCCESS = "all_success"
+    ALL_FAILED = "all_failed"
+    ALL_DONE = "all_done"
+    ALL_DONE_SETUP_SUCCESS = "all_done_setup_success"
+    ONE_SUCCESS = "one_success"
+    ONE_FAILED = "one_failed"
+    ONE_DONE = "one_done"
+    NONE_FAILED = "none_failed"
+    NONE_SKIPPED = "none_skipped"
+    ALWAYS = "always"
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
-
-    _ALL_TRIGGER_RULES: Set[str] = set()
+    ALL_SKIPPED = "all_skipped"
 
     @classmethod
-    def is_valid(cls, trigger_rule):
-        """Validates a trigger rule."""
+    def is_valid(cls, trigger_rule: str) -> bool:
+        """Validate a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
-    def all_triggers(cls):
-        """Returns all trigger rules."""
-        if not cls._ALL_TRIGGER_RULES:
-            cls._ALL_TRIGGER_RULES = {
-                getattr(cls, attr)
-                for attr in dir(cls)
-                if not attr.startswith("_") and not callable(getattr(cls, attr))
-            }
-        return cls._ALL_TRIGGER_RULES
+    def all_triggers(cls) -> set[str]:
+        """Return all trigger rules."""
+        return set(cls.__members__.values())
+
+    def __str__(self) -> str:
+        return self.value

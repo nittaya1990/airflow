@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import setproctitle
 
@@ -26,7 +27,17 @@ def post_worker_init(_):
     """
     Set process title.
 
-    This is used by airflow.cli.commands.webserver_command to track the status of the worker.
+    This is used by airflow.cli.commands.local_commands.webserver_command to track the status of the worker.
     """
     old_title = setproctitle.getproctitle()
     setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+
+
+def on_starting(server):
+    from airflow.providers_manager import ProvidersManager
+
+    providers_manager = ProvidersManager()
+    # Load providers configuration before forking workers
+    providers_manager.initialize_providers_configuration()
+    # Load providers before forking workers
+    providers_manager.connection_form_widgets

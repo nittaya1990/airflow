@@ -14,62 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Sequence, Union
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from airflow.typing_compat import TypeAlias
 
-class TaskMixin:
-    """
-    Mixing implementing common chain methods like >> and <<.
+import airflow.sdk.definitions._internal.mixins
+import airflow.sdk.definitions._internal.node
 
-    In the following functions we use:
-    Task = Union[BaseOperator, XComArg]
-    No type annotations due to cyclic imports.
-    """
-
-    @property
-    def roots(self):
-        """Should return list of root operator List[BaseOperator]"""
-        raise NotImplementedError()
-
-    @property
-    def leaves(self):
-        """Should return list of leaf operator List[BaseOperator]"""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def set_upstream(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Set a task or a task list to be directly upstream from the current task."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def set_downstream(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Set a task or a task list to be directly downstream from the current task."""
-        raise NotImplementedError()
-
-    def update_relative(self, other: "TaskMixin", upstream=True) -> None:
-        """
-        Update relationship information about another TaskMixin. Default is no-op.
-        Override if necessary.
-        """
-
-    def __lshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Implements Task << Task"""
-        self.set_upstream(other)
-        return other
-
-    def __rshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Implements Task >> Task"""
-        self.set_downstream(other)
-        return other
-
-    def __rrshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Called for Task >> [Task] because list don't have __rshift__ operators."""
-        self.__lshift__(other)
-        return self
-
-    def __rlshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
-        """Called for Task << [Task] because list don't have __lshift__ operators."""
-        self.__rshift__(other)
-        return self
+DependencyMixin: TypeAlias = airflow.sdk.definitions._internal.mixins.DependencyMixin
+DAGNode: TypeAlias = airflow.sdk.definitions._internal.node.DAGNode

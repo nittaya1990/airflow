@@ -15,47 +15,51 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck disable=SC2086
+# shellcheck shell=bash disable=SC2086
 set -euo pipefail
 
-test -v UPGRADE_TO_NEWER_DEPENDENCIES
-test -v ADDITIONAL_PYTHON_DEPS
-test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
-test -v AIRFLOW_INSTALL_USER_FLAG
-test -v AIRFLOW_PIP_VERSION
+: "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-
-set -x
-
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
-        echo Installing additional dependencies while upgrading to newer dependencies
+        echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
-        # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+        set +x
+        common::install_packaging_tools
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     else
         echo
-        echo Installing additional dependencies upgrading only if needed
+        echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} \
-            --upgrade --upgrade-strategy only-if-needed \
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
-        # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        set +x
+        common::install_packaging_tools
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     fi
 }
 
+common::get_colors
+common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
+common::show_packaging_tool_version_and_location
 
 install_additional_dependencies

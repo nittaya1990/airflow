@@ -38,9 +38,10 @@ Sensitive field names
 When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
 task.
 
-It will also mask the value of a Variable, or the field of a Connection's extra JSON blob if the name contains
-any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase', 'passwd',
-'password', 'private_key', 'secret', 'token'). This list can also be extended:
+It will also mask the value of a Variable, rendered template dictionaries, XCom dictionaries or the
+field of a Connection's extra JSON blob if the name is in the list of known-sensitive fields (i.e. 'access_token',
+'api_key', 'apikey', 'authorization', 'passphrase', 'passwd', 'password', 'private_key', 'secret' or 'token').
+This list can also be extended:
 
 .. code-block:: ini
 
@@ -50,14 +51,14 @@ any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase',
 Adding your own masks
 """""""""""""""""""""
 
-If you want to mask an additional secret that is already masked by one of the above methods, you can do it in
+If you want to mask an additional secret that is not already masked by one of the above methods, you can do it in
 your DAG file or operator's ``execute`` function using the ``mask_secret`` function. For example:
 
 .. code-block:: python
 
     @task
     def my_func():
-        from airflow.utils.log.secrets_masker import mask_secret
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
 
         mask_secret("custom_value")
 
@@ -70,10 +71,21 @@ or
 
     class MyOperator(BaseOperator):
         def execute(self, context):
-            from airflow.utils.log.secrets_masker import mask_secret
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
 
             mask_secret("custom_value")
 
             ...
 
 The mask must be set before any log/output is produced to have any effect.
+
+NOT masking when using environment variables
+""""""""""""""""""""""""""""""""""""""""""""
+
+When you are using some operators - for example :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`,
+you might be tempted to pass secrets via environment variables. This is very bad practice because the environment
+variables are visible to anyone who has access to see the environment of the process - such secrets passed by
+environment variables will NOT be masked by Airflow.
+
+If you need to pass secrets to the KubernetesPodOperator, you should use native Kubernetes secrets or
+use Airflow Connection or Variables to retrieve the secrets dynamically.

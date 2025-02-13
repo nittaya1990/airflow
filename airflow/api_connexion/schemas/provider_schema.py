@@ -14,29 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple, TypedDict
 
 from marshmallow import Schema, fields
 
 
 class ProviderSchema(Schema):
-    """Provider schema"""
+    """Provider schema."""
 
     package_name = fields.String(required=True)
     description = fields.String(required=True)
     version = fields.String(required=True)
 
 
-class ProviderCollection(NamedTuple):
-    """List of Providers"""
+class Provider(TypedDict):
+    """A provider."""
 
-    providers: List[ProviderSchema]
+    package_name: str
+    description: str
+    version: str
+
+
+class ProviderCollection(NamedTuple):
+    """List of Providers."""
+
+    providers: list[Provider]
     total_entries: int
 
 
 class ProviderCollectionSchema(Schema):
-    """Provider Collection schema"""
+    """Provider Collection schema."""
 
     providers = fields.List(fields.Nested(ProviderSchema))
     total_entries = fields.Int()

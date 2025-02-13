@@ -14,13 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.utils.types import NOTSET
+
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+
+pytestmark = pytest.mark.db_test
+
 
 VALUE = 42
 
@@ -48,7 +54,6 @@ def build_python_op(dag_maker):
 def clear_db():
     clear_db_runs()
     clear_db_dags()
-    yield
 
 
 class TestXComArgBuild:
@@ -116,6 +121,13 @@ class TestXComArgBuild:
 
         assert op_a.output == XComArg(op_a)
 
+    def test_xcom_key_getitem_not_str(self, dag_maker):
+        python_op = build_python_op(dag_maker)
+        actual = XComArg(python_op)
+        with pytest.raises(ValueError) as ctx:
+            actual[1]
+        assert str(ctx.value) == "XComArg only supports str lookup, received int"
+
     def test_xcom_key_getitem(self, dag_maker):
         python_op = build_python_op(dag_maker)
         actual = XComArg(python_op, key="another_key")
@@ -123,10 +135,16 @@ class TestXComArgBuild:
         actual_new_key = actual["another_key_2"]
         assert actual_new_key.key == "another_key_2"
 
+    def test_xcom_not_iterable(self, dag_maker):
+        python_op = build_python_op(dag_maker)
+        actual = XComArg(python_op)
+        with pytest.raises(TypeError) as ctx:
+            list(actual)
+        assert str(ctx.value) == "'XComArg' object is not iterable"
 
-@pytest.mark.system("core")
+
+@pytest.mark.system
 class TestXComArgRuntime:
-    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self, dag_maker):
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             operator = PythonOperator(
@@ -141,9 +159,8 @@ class TestXComArgRuntime:
                 task_id="assert_is_value_1",
             )
             operator >> operator2
-        dag.run()
+        dag.test()
 
-    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_push_and_pass(self, dag_maker):
         def push_xcom_value(key, value, **context):
             ti = context["task_instance"]
@@ -162,4 +179,47 @@ class TestXComArgRuntime:
                 op_args=[xarg],
             )
             op1 >> op2
-        dag.run()
+        dag.test()
+
+
+@pytest.mark.parametrize(
+    "fillvalue, expected_results",
+    [
+        (NOTSET, {("a", 1), ("b", 2), ("c", 3)}),
+        (None, {("a", 1), ("b", 2), ("c", 3), (None, 4)}),
+    ],
+)
+def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
+    results = set()
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2, 3, 4]
+
+        @dag.task
+        def pull(value):
+            results.add(value)
+
+        pull.expand(value=push_letters().zip(push_numbers(), fillvalue=fillvalue))
+
+    dr = dag_maker.create_dagrun()
+
+    # Run "push_letters" and "push_numbers".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["push_letters", "push_numbers"]
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+
+    # Run "pull".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["pull"] * len(expected_results)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    assert results == expected_results

@@ -27,7 +27,7 @@ code or CLI.
 
 .. image:: ../img/variable_hidden.png
 
-See the :doc:`Variables Concepts </concepts/variables>` documentation for
+See the :doc:`Variables Concepts </core-concepts/variables>` documentation for
 more information.
 
 Storing Variables in Environment Variables
@@ -37,7 +37,7 @@ Storing Variables in Environment Variables
 
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
 naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
-So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
+So if your variable key is ``foo`` then the variable name should be ``AIRFLOW_VAR_FOO``.
 
 For example,
 
@@ -62,7 +62,8 @@ You can use them in your DAGs as:
     Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
     parameters are stored, where double underscores surround the config section name.
     Variables set using Environment Variables would not appear in the Airflow UI but you will
-    be able to use them in your DAG file.
+    be able to use them in your DAG file. Variables set using Environment Variables will also
+    take precedence over variables defined in the Airflow UI.
 
 Securing Variables
 ------------------

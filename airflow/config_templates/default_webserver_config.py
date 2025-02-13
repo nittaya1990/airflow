@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default configuration for the Airflow webserver"""
+"""Default configuration for the Airflow webserver."""
+
+from __future__ import annotations
+
 import os
 
-from airflow.www.fab_security.manager import AUTH_DB
+from flask_appbuilder.const import AUTH_DB
 
 # from airflow.www.fab_security.manager import AUTH_LDAP
 # from airflow.www.fab_security.manager import AUTH_OAUTH
@@ -30,9 +33,10 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Flask-WTF flag for CSRF
 WTF_CSRF_ENABLED = True
+WTF_CSRF_TIME_LIMIT = None
 
 # ----------------------------------------------------
-# AUTHENTICATION CONFIG
+# AUTHENTICATION CONFIG (specific to FAB auth manager)
 # ----------------------------------------------------
 # For details on how to set up each of the following authentication, see
 # http://flask-appbuilder.readthedocs.io/en/latest/security.html# authentication-methods
@@ -49,8 +53,8 @@ AUTH_TYPE = AUTH_DB
 # Uncomment to setup Full admin role name
 # AUTH_ROLE_ADMIN = 'Admin'
 
-# Uncomment to setup Public role name, no authentication needed
-# AUTH_ROLE_PUBLIC = 'Public'
+# Uncomment and set to desired role to enable access without authentication
+# AUTH_ROLE_PUBLIC = 'Viewer'
 
 # Will allow user self registration
 # AUTH_USER_REGISTRATION = True

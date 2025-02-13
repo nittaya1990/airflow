@@ -15,33 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sends lineage metadata to a backend"""
-from typing import TYPE_CHECKING, Optional
+"""Sends lineage metadata to a backend."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
 
 
 class LineageBackend:
-    """Sends lineage metadata to a backend"""
+    """Sends lineage metadata to a backend."""
 
     def send_lineage(
         self,
-        operator: 'BaseOperator',
-        inlets: Optional[list] = None,
-        outlets: Optional[list] = None,
-        context: Optional[dict] = None,
+        operator: BaseOperator,
+        inlets: list | None = None,
+        outlets: list | None = None,
+        context: dict | None = None,
     ):
         """
-        Sends lineage metadata to a backend
+        Send lineage metadata to a backend.
 
         :param operator: the operator executing a transformation on the inlets and outlets
-        :type operator: airflow.models.baseoperator.BaseOperator
         :param inlets: the inlets to this operator
-        :type inlets: list
         :param outlets: the outlets from this operator
-        :type outlets: list
         :param context: the current context of the task instance
-        :type context: dict
         """
         raise NotImplementedError()

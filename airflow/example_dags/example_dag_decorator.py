@@ -15,14 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import httpx
+import pendulum
 
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.email import EmailOperator
+from airflow.providers.standard.operators.bash import BashOperator
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
 
 
 class GetRequestOperator(BaseOperator):
@@ -32,35 +37,36 @@ class GetRequestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.url = url
 
-    def execute(self, context):
+    def execute(self, context: Context):
         return httpx.get(self.url).json()
 
 
 # [START dag_decorator_usage]
-@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
-def example_dag_decorator(email: str = 'example@example.com'):
+@dag(
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+)
+def example_dag_decorator(url: str = "http://httpbin.org/get"):
     """
-    DAG to send server IP to email.
+    DAG to get IP address and echo it via BashOperator.
 
-    :param email: Email to send IP to. Defaults to example@example.com.
-    :type email: str
+    :param url: URL to get IP address from. Defaults to "http://httpbin.org/get".
     """
-    get_ip = GetRequestOperator(task_id='get_ip', url="http://httpbin.org/get")
+    get_ip = GetRequestOperator(task_id="get_ip", url=url)
 
     @task(multiple_outputs=True)
-    def prepare_email(raw_json: Dict[str, Any]) -> Dict[str, str]:
-        external_ip = raw_json['origin']
+    def prepare_command(raw_json: dict[str, Any]) -> dict[str, str]:
+        external_ip = raw_json["origin"]
         return {
-            'subject': f'Server connected from {external_ip}',
-            'body': f'Seems like today your server executing Airflow is connected from IP {external_ip}<br>',
+            "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
         }
 
-    email_info = prepare_email(get_ip.output)
+    command_info = prepare_command(get_ip.output)
 
-    EmailOperator(
-        task_id='send_email', to=email, subject=email_info['subject'], html_content=email_info['body']
-    )
+    BashOperator(task_id="echo_ip_info", bash_command=command_info["command"])
 
 
-dag = example_dag_decorator()
+example_dag = example_dag_decorator()
 # [END dag_decorator_usage]

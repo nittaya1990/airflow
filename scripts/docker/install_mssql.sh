@@ -15,22 +15,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -exuo pipefail
+# shellcheck shell=bash
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+set -euo pipefail
+
+common::get_colors
+declare -a packages
+
+: "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
+
+
 function install_mssql_client() {
+    # Install MsSQL client from Microsoft repositories
+    if [[ ${INSTALL_MSSQL_CLIENT:="true"} != "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Skip installing mssql client${COLOR_RESET}"
+        echo
+        return
+    fi
+    packages=("msodbcsql18")
+
+    common::import_trusted_gpg "EB3E94ADBE1229CF" "microsoft"
+
     echo
-    echo Installing mssql client
+    echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
-    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
+
+    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
+        /etc/apt/sources.list.d/mssql-release.list
     apt-get update -yqq
     apt-get upgrade -yqq
-    ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends msodbcsql17 mssql-tools
+    ACCEPT_EULA=Y apt-get -yqq install --no-install-recommends "${packages[@]}"
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-# Install MsSQL client from Microsoft repositories
-if [[ ${INSTALL_MSSQL_CLIENT:="true"} == "true" ]]; then
-    install_mssql_client "${@}"
-fi
+install_mssql_client "${@}"

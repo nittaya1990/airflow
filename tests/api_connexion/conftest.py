@@ -14,22 +14,43 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import os
 
 import pytest
 
 from airflow.www import app
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import parse_and_sync_to_db
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
 def minimal_app_for_api():
     @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+        skip_all_except=[
+            "init_appbuilder",
+            "init_api_auth",
+            "init_api_connexion",
+            "init_api_error_handlers",
+            "init_airflow_session_interface",
+            "init_appbuilder_views",
+        ]
     )
     def factory():
-        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            return app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {
+                ("api", "auth_backends"): "tests_common.test_utils.remote_user_api_auth_backend",
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            }
+        ):
+            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            return _app
 
     return factory()
 
@@ -42,9 +63,9 @@ def session():
         yield session
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dagbag():
     from airflow.models import DagBag
 
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-    return DagBag(include_examples=True, read_dags_from_db=True)
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)

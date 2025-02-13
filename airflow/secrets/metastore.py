@@ -15,53 +15,53 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from metastore database"""
-import warnings
-from typing import TYPE_CHECKING, List, Optional
+"""Objects relating to sourcing connections from metastore database."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from sqlalchemy import select
 
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from sqlalchemy.orm import Session
+
+    from airflow.models import Connection
 
 
 class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
-    def get_connection(self, conn_id, session=None) -> Optional['Connection']:
-        from airflow.models.connection import Connection
+    def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
+        """
+        Get Airflow Connection from Metadata DB.
 
-        conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        :param conn_id: Connection ID
+        :param session: SQLAlchemy Session
+        :return: Connection Object
+        """
+        from airflow.models import Connection
+
+        conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
         session.expunge_all()
         return conn
 
     @provide_session
-    def get_connections(self, conn_id, session=None) -> List['Connection']:
-        warnings.warn(
-            "This method is deprecated. Please use "
-            "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
-            PendingDeprecationWarning,
-            stacklevel=3,
-        )
-        conn = self.get_connection(conn_id=conn_id, session=session)
-        if conn:
-            return [conn]
-        return []
-
-    @provide_session
-    def get_variable(self, key: str, session=None):
+    def get_variable(self, key: str, session: Session = NEW_SESSION) -> str | None:
         """
-        Get Airflow Variable from Metadata DB
+        Get Airflow Variable from Metadata DB.
 
         :param key: Variable Key
-        :type key: str
+        :param session: SQLAlchemy Session
         :return: Variable Value
         """
-        from airflow.models.variable import Variable
+        from airflow.models import Variable
 
-        var_value = session.query(Variable).filter(Variable.key == key).first()
+        var_value = session.scalar(select(Variable).where(Variable.key == key).limit(1))
         session.expunge_all()
         if var_value:
             return var_value.val

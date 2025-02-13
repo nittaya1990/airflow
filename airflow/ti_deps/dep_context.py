@@ -15,23 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.session import Session
+import attr
 
+from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
 
+@attr.define
 class DepContext:
     """
-    A base class for contexts that specifies which dependencies should be evaluated in
-    the context for a task instance to satisfy the requirements of the context. Also
-    stores state related to the context that can be used by dependency classes.
+    A base class for dependency contexts.
+
+    Specifies which dependencies should be evaluated in the context for a task
+    instance to satisfy the requirements of the context. Also stores state
+    related to the context that can be used by dependency classes.
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
@@ -43,63 +50,57 @@ class DepContext:
 
     :param deps: The context-specific dependencies that need to be evaluated for a
         task instance to run in this execution context.
-    :type deps: set(airflow.ti_deps.deps.base_ti_dep.BaseTIDep)
     :param flag_upstream_failed: This is a hack to generate the upstream_failed state
         creation while checking to see whether the task instance is runnable. It was the
         shortest path to add the feature. This is bad since this class should be pure (no
         side effects).
-    :type flag_upstream_failed: bool
     :param ignore_all_deps: Whether or not the context should ignore all ignorable
         dependencies. Overrides the other ignore_* parameters
-    :type ignore_all_deps: bool
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
-    :type ignore_depends_on_past: bool
+    :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
     :param ignore_in_retry_period: Ignore the retry period for task instances
-    :type ignore_in_retry_period: bool
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
-    :type ignore_in_reschedule_period: bool
+    :param ignore_unmapped_tasks: Ignore errors about mapped tasks not yet being expanded
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
-    :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
-    :type ignore_ti_state: bool
-    :param finished_tasks: A list of all the finished tasks of this run
-    :type finished_tasks: list[airflow.models.TaskInstance]
+    :param finished_tis: A list of all the finished task instances of this run
     """
 
-    def __init__(
-        self,
-        deps=None,
-        flag_upstream_failed: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        ignore_in_retry_period: bool = False,
-        ignore_in_reschedule_period: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        finished_tasks=None,
-    ):
-        self.deps = deps or set()
-        self.flag_upstream_failed = flag_upstream_failed
-        self.ignore_all_deps = ignore_all_deps
-        self.ignore_depends_on_past = ignore_depends_on_past
-        self.ignore_in_retry_period = ignore_in_retry_period
-        self.ignore_in_reschedule_period = ignore_in_reschedule_period
-        self.ignore_task_deps = ignore_task_deps
-        self.ignore_ti_state = ignore_ti_state
-        self.finished_tasks = finished_tasks
+    deps: set = attr.ib(factory=set)
+    flag_upstream_failed: bool = False
+    ignore_all_deps: bool = False
+    ignore_depends_on_past: bool = False
+    wait_for_past_depends_before_skipping: bool = False
+    ignore_in_retry_period: bool = False
+    ignore_in_reschedule_period: bool = False
+    ignore_task_deps: bool = False
+    ignore_ti_state: bool = False
+    ignore_unmapped_tasks: bool = False
+    finished_tis: list[TaskInstance] | None = None
+    description: str | None = None
 
-    def ensure_finished_tasks(self, dag_run: "DagRun", session: Session) -> "List[TaskInstance]":
-        """
-        This method makes sure finished_tasks is populated if it's currently None.
-        This is for the strange feature of running tasks without dag_run.
+    have_changed_ti_states: bool = False
+    """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
-        :param dag_run: The DagRun for which to find finished tasks
-        :type dag_run: airflow.models.DagRun
-        :return: A list of all the finished tasks of this DAG and execution_date
-        :rtype: list[airflow.models.TaskInstance]
+    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
-        if self.finished_tasks is None:
-            self.finished_tasks = dag_run.get_task_instances(state=State.finished, session=session)
-        return self.finished_tasks
+        Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
+
+         :param dag_run: The DagRun for which to find finished tasks
+         :return: A list of all the finished tasks of this DAG and logical_date
+        """
+        if self.finished_tis is None:
+            finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            for ti in finished_tis:
+                if not getattr(ti, "task", None) is not None and dag_run.dag:
+                    try:
+                        ti.task = dag_run.dag.get_task(ti.task_id)
+                    except TaskNotFound:
+                        pass
+
+            self.finished_tis = finished_tis
+        else:
+            finished_tis = self.finished_tis
+        return finished_tis

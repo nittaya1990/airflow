@@ -14,19 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
+from collections.abc import Generator
 from functools import wraps
 from inspect import signature
-from typing import Callable, Iterator, TypeVar
+from typing import Callable, TypeVar, cast
+
+from sqlalchemy.orm import Session as SASession
 
 from airflow import settings
+from airflow.typing_compat import ParamSpec
 
 
 @contextlib.contextmanager
-def create_session() -> Iterator[settings.SASession]:
+def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
-    session: settings.SASession = settings.Session()
+    if scoped:
+        Session = getattr(settings, "Session", None)
+    else:
+        Session = getattr(settings, "NonScopedSession", None)
+    if Session is None:
+        raise RuntimeError("Session must be set before!")
+    session = Session()
     try:
         yield session
         session.commit()
@@ -37,10 +48,29 @@ def create_session() -> Iterator[settings.SASession]:
         session.close()
 
 
+@contextlib.asynccontextmanager
+async def create_session_async():
+    """
+    Context manager to create async session.
+
+    :meta private:
+    """
+    from airflow.settings import AsyncSession
+
+    async with AsyncSession() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
 
-def find_session_idx(func: Callable[..., RT]) -> int:
+def find_session_idx(func: Callable[PS, RT]) -> int:
     """Find session index in function call parameter."""
     func_params = signature(func).parameters
     try:
@@ -52,9 +82,10 @@ def find_session_idx(func: Callable[..., RT]) -> int:
     return session_args_idx
 
 
-def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
+def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
-    Function decorator that provides a session if it isn't provided.
+    Provide a session if it isn't provided.
+
     If you want to reuse a session or run the function as part of a
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
@@ -72,36 +103,8 @@ def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
     return wrapper
 
 
-@provide_session
-@contextlib.contextmanager
-def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_timeout=1800):
-    """Contextmanager that will create and teardown a global db lock."""
-    dialect = session.connection().dialect
-    try:
-        if dialect.name == 'postgresql':
-            session.connection().execute(f'select PG_ADVISORY_LOCK({pg_lock_id});')
-
-        if dialect.name == 'mysql' and dialect.server_version_info >= (
-            5,
-            6,
-        ):
-            session.connection().execute(f"select GET_LOCK('{lock_name}',{mysql_lock_timeout});")
-
-        if dialect.name == 'mssql':
-            # TODO: make locking works for MSSQL
-            pass
-
-        yield None
-    finally:
-        if dialect.name == 'postgresql':
-            session.connection().execute(f'select PG_ADVISORY_UNLOCK({pg_lock_id});')
-
-        if dialect.name == 'mysql' and dialect.server_version_info >= (
-            5,
-            6,
-        ):
-            session.connection().execute(f"select RELEASE_LOCK('{lock_name}');")
-
-        if dialect.name == 'mssql':
-            # TODO: make locking works for MSSQL
-            pass
+# A fake session to use in functions decorated by provide_session. This allows
+# the 'session' argument to be of type Session instead of Session | None,
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+NEW_SESSION: SASession = cast(SASession, None)

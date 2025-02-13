@@ -15,16 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
 
-import os
-from datetime import datetime, timedelta
-from textwrap import dedent
+from __future__ import annotations
 
-from airflow import DAG
+import datetime
+import os
+import textwrap
+
+import pendulum
+
 from airflow.decorators import task
-from airflow.operators.bash import BashOperator
+from airflow.models.dag import DAG
+from airflow.providers.standard.operators.bash import BashOperator
 
 
 @task(task_id="run_this")
@@ -57,25 +60,26 @@ def print_env_vars(test_mode=None):
 
 with DAG(
     "example_passing_params_via_test_command",
-    schedule_interval='*/1 * * * *',
-    start_date=datetime(2021, 1, 1),
+    schedule="*/1 * * * *",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    dagrun_timeout=timedelta(minutes=4),
-    tags=['example'],
+    dagrun_timeout=datetime.timedelta(minutes=4),
+    tags=["example"],
 ) as dag:
     run_this = my_py_command(params={"miff": "agg"})
 
-    my_templated_command = dedent(
+    my_command = textwrap.dedent(
         """
-        echo " 'foo was passed in via Airflow CLI Test command with value {{ params.foo }} "
-        echo " 'miff was passed in via BashOperator with value {{ params.miff }} "
+        echo "'foo' was passed in via Airflow CLI Test command with value '$FOO'"
+        echo "'miff' was passed in via BashOperator with value '$MIFF'"
         """
     )
 
     also_run_this = BashOperator(
-        task_id='also_run_this',
-        bash_command=my_templated_command,
+        task_id="also_run_this",
+        bash_command=my_command,
         params={"miff": "agg"},
+        env={"FOO": "{{ params.foo }}", "MIFF": "{{ params.miff }}"},
     )
 
     env_var_test_task = print_env_vars()

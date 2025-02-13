@@ -20,18 +20,19 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 export PYTHONPATH=${AIRFLOW_SOURCES}
 
-mypy_args=()
+ADDITIONAL_MYPY_OPTIONS=()
 
-# Mypy doesn't cope very well with namespace packages when give filenames (it gets confused about the lack of __init__.py in airflow.providers, and thinks airflow.providers.docker is the same as a "docker" top level module).
-#
-# So we instead need to convert the file names in to module names to check
-for filename in "$@";
-do
-    if [[ "${filename}" == docs/* ]]; then
-        mypy_args+=("$filename")
-    else
-        mypy_args+=("-m" "$(filename_to_python_module "$filename")")
-    fi
-done
+export MYPY_FORCE_COLOR=true
+export TERM=ansi
 
-mypy --namespace-packages "${mypy_args[@]}"
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]];
+then
+    for folder in ${SUSPENDED_PROVIDERS_FOLDERS=}
+    do
+        ADDITIONAL_MYPY_OPTIONS+=(
+            "--exclude" "providers/src/airflow/providers/${folder}/*"
+            "--exclude" "providers/tests/${folder}/*"
+        )
+    done
+fi
+mypy "${ADDITIONAL_MYPY_OPTIONS[@]}" "${@}"

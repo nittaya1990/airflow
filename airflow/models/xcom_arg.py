@@ -15,135 +15,178 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from __future__ import annotations
 
-from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskmixin import TaskMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.utils.edgemodifier import EdgeModifier
+from collections.abc import Sequence
+from functools import singledispatch
+from typing import TYPE_CHECKING, Any
+
+import attrs
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
+from airflow.sdk.definitions._internal.types import ArgNotSet
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.xcom_arg import (
+    XComArg,
+)
+from airflow.utils.db import exists_query
+from airflow.utils.state import State
+from airflow.utils.types import NOTSET
+from airflow.utils.xcom import XCOM_RETURN_KEY
+
+__all__ = ["XComArg", "get_task_map_length"]
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG as SchedulerDAG
+    from airflow.models.operator import Operator
+    from airflow.typing_compat import Self
 
 
-class XComArg(TaskMixin):
-    """
-    Class that represents a XCom push from a previous operator.
-    Defaults to "return_value" as only key.
-
-    Current implementation supports
-        xcomarg >> op
-        xcomarg << op
-        op >> xcomarg   (by BaseOperator code)
-        op << xcomarg   (by BaseOperator code)
-
-    **Example**: The moment you get a result from any operator (decorated or regular) you can ::
-
-        any_op = AnyOperator()
-        xcomarg = XComArg(any_op)
-        # or equivalently
-        xcomarg = any_op.output
-        my_op = MyOperator()
-        my_op >> xcomarg
-
-    This object can be used in legacy Operators via Jinja.
-
-    **Example**: You can make this result to be part of any generated string ::
-
-        any_op = AnyOperator()
-        xcomarg = any_op.output
-        op1 = MyOperator(my_text_message=f"the value is {xcomarg}")
-        op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
-
-    :param operator: operator to which the XComArg belongs to
-    :type operator: airflow.models.baseoperator.BaseOperator
-    :param key: key value which is used for xcom_pull (key in the XCom table)
-    :type key: str
-    """
-
-    def __init__(self, operator: BaseOperator, key: str = XCOM_RETURN_KEY):
-        self._operator = operator
-        self._key = key
-
-    def __eq__(self, other):
-        return self.operator == other.operator and self.key == other.key
-
-    def __getitem__(self, item):
-        """Implements xcomresult['some_result_key']"""
-        return XComArg(operator=self.operator, key=item)
-
-    def __str__(self):
+@attrs.define
+class SchedulerXComArg:
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
         """
-        Backward compatibility for old-style jinja used in Airflow Operators
+        Deserialize an XComArg.
 
-        **Example**: to use XComArg at BashOperator::
-
-            BashOperator(cmd=f"... { xcomarg } ...")
-
-        :return:
+        The implementation should be the inverse function to ``serialize``,
+        implementing given a data dict converted from this XComArg derivative,
+        how the original XComArg should be created. DAG serialization relies on
+        additional information added in ``serialize_xcom_arg`` to dispatch data
+        dicts to the correct ``_deserialize`` information, so this function does
+        not need to validate whether the incoming data contains correct keys.
         """
-        xcom_pull_kwargs = [
-            f"task_ids='{self.operator.task_id}'",
-            f"dag_id='{self.operator.dag.dag_id}'",
-        ]
-        if self.key is not None:
-            xcom_pull_kwargs.append(f"key='{self.key}'")
+        raise NotImplementedError()
 
-        xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
-        # {{{{ are required for escape {{ in f-string
-        xcom_pull = f"{{{{ task_instance.xcom_pull({xcom_pull_kwargs}) }}}}"
-        return xcom_pull
 
-    @property
-    def operator(self) -> BaseOperator:
-        """Returns operator of this XComArg."""
-        return self._operator
+@attrs.define
+class SchedulerPlainXComArg(SchedulerXComArg):
+    operator: Operator
+    key: str
 
-    @property
-    def roots(self) -> List[BaseOperator]:
-        """Required by TaskMixin"""
-        return [self._operator]
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+        return cls(dag.get_task(data["task_id"]), data["key"])
 
-    @property
-    def leaves(self) -> List[BaseOperator]:
-        """Required by TaskMixin"""
-        return [self._operator]
 
-    @property
-    def key(self) -> str:
-        """Returns keys of this XComArg"""
-        return self._key
+@attrs.define
+class SchedulerMapXComArg(SchedulerXComArg):
+    arg: SchedulerXComArg
+    callables: Sequence[str]
 
-    def set_upstream(
-        self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
-    ):
-        """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
-        self.operator.set_upstream(task_or_task_list, edge_modifier)
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+        # We are deliberately NOT deserializing the callables. These are shown
+        # in the UI, and displaying a function object is useless.
+        return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
 
-    def set_downstream(
-        self,
-        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
-    ):
-        """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
-        self.operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def resolve(self, context: Dict) -> Any:
-        """
-        Pull XCom value for the existing arg. This method is run during ``op.execute()``
-        in respectable context.
-        """
-        resolved_value = self.operator.xcom_pull(
-            context=context,
-            task_ids=[self.operator.task_id],
-            key=str(self.key),  # xcom_pull supports only key as str
-            dag_id=self.operator.dag.dag_id,
+@attrs.define
+class SchedulerConcatXComArg(SchedulerXComArg):
+    args: Sequence[SchedulerXComArg]
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+        return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
+
+
+@attrs.define
+class SchedulerZipXComArg(SchedulerXComArg):
+    args: Sequence[SchedulerXComArg]
+    fillvalue: Any
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+        return cls(
+            [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
+            fillvalue=data.get("fillvalue", NOTSET),
         )
-        if not resolved_value:
-            raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
-                f'with key="{self.key}"" is not found!'
-            )
-        resolved_value = resolved_value[0]
 
-        return resolved_value
+
+@singledispatch
+def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Session) -> int | None:
+    # The base implementation -- specific XComArg subclasses have specialised implementations
+    raise NotImplementedError(f"get_task_map_length not implemented for {type(xcom_arg)}")
+
+
+@get_task_map_length.register
+def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskmap import TaskMap
+    from airflow.models.xcom import XCom
+
+    dag_id = xcom_arg.operator.dag_id
+    task_id = xcom_arg.operator.task_id
+    is_mapped = xcom_arg.operator.is_mapped or isinstance(xcom_arg.operator, MappedOperator)
+
+    if is_mapped:
+        unfinished_ti_exists = exists_query(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id == task_id,
+            # Special NULL treatment is needed because 'state' can be NULL.
+            # The "IN" part would produce "NULL NOT IN ..." and eventually
+            # "NULl = NULL", which is a big no-no in SQL.
+            or_(
+                TaskInstance.state.is_(None),
+                TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+            ),
+            session=session,
+        )
+        if unfinished_ti_exists:
+            return None  # Not all of the expanded tis are done yet.
+        query = select(func.count(XCom.map_index)).where(
+            XCom.dag_id == dag_id,
+            XCom.run_id == run_id,
+            XCom.task_id == task_id,
+            XCom.map_index >= 0,
+            XCom.key == XCOM_RETURN_KEY,
+        )
+    else:
+        query = select(TaskMap.length).where(
+            TaskMap.dag_id == dag_id,
+            TaskMap.run_id == run_id,
+            TaskMap.task_id == task_id,
+            TaskMap.map_index < 0,
+        )
+    return session.scalar(query)
+
+
+@get_task_map_length.register
+def _(xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session):
+    return get_task_map_length(xcom_arg.arg, run_id, session=session)
+
+
+@get_task_map_length.register
+def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session):
+    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+    ready_lengths = [length for length in all_lengths if length is not None]
+    if len(ready_lengths) != len(xcom_arg.args):
+        return None  # If any of the referenced XComs is not ready, we are not ready either.
+    if isinstance(xcom_arg.fillvalue, ArgNotSet):
+        return min(ready_lengths)
+    return max(ready_lengths)
+
+
+@get_task_map_length.register
+def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
+    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+    ready_lengths = [length for length in all_lengths if length is not None]
+    if len(ready_lengths) != len(xcom_arg.args):
+        return None  # If any of the referenced XComs is not ready, we are not ready either.
+    return sum(ready_lengths)
+
+
+def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
+    """DAG serialization interface."""
+    klass = _XCOM_ARG_TYPES[data.get("type", "")]
+    return klass._deserialize(data, dag)
+
+
+_XCOM_ARG_TYPES: dict[str, type[SchedulerXComArg]] = {
+    "": SchedulerPlainXComArg,
+    "concat": SchedulerConcatXComArg,
+    "map": SchedulerMapXComArg,
+    "zip": SchedulerZipXComArg,
+}

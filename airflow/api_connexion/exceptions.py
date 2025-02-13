@@ -14,12 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from __future__ import annotations
+
+from http import HTTPStatus
+from typing import TYPE_CHECKING, Any
 
 import werkzeug
+from connexion import FlaskApi, ProblemException, problem
 
-from airflow._vendor.connexion import FlaskApi, ProblemException, problem
 from airflow.utils.docs import get_docs_url
+
+if TYPE_CHECKING:
+    import flask
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
 
@@ -34,14 +40,9 @@ EXCEPTIONS_LINK_MAP = {
 }
 
 
-def common_error_handler(exception):
-    """
-    Used to capture connexion exceptions and add link to the type field
-
-    :type exception: Exception
-    """
+def common_error_handler(exception: BaseException) -> flask.Response:
+    """Use to capture connexion exceptions and add link to the type field."""
     if isinstance(exception, ProblemException):
-
         link = EXCEPTIONS_LINK_MAP.get(exception.status)
         if link:
             response = problem(
@@ -73,78 +74,124 @@ def common_error_handler(exception):
 
 
 class NotFound(ProblemException):
-    """Raise when the object cannot be found"""
+    """Raise when the object cannot be found."""
 
     def __init__(
-        self, title: str = 'Not Found', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
-    ):
+        self,
+        title: str = "Not Found",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=404, type=EXCEPTIONS_LINK_MAP[404], title=title, detail=detail, headers=headers, **kwargs
+            status=HTTPStatus.NOT_FOUND,
+            type=EXCEPTIONS_LINK_MAP[404],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
 class BadRequest(ProblemException):
-    """Raise when the server processes a bad request"""
+    """Raise when the server processes a bad request."""
 
     def __init__(
         self,
-        title: str = 'Bad Request',
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
-        **kwargs,
-    ):
+        title: str = "Bad Request",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
-            status=400, type=EXCEPTIONS_LINK_MAP[400], title=title, detail=detail, headers=headers, **kwargs
+            status=HTTPStatus.BAD_REQUEST,
+            type=EXCEPTIONS_LINK_MAP[400],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
 class Unauthenticated(ProblemException):
-    """Raise when the user is not authenticated"""
+    """Raise when the user is not authenticated."""
 
     def __init__(
         self,
-        title: str = 'Unauthorized',
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
-        **kwargs,
+        title: str = "Unauthorized",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
     ):
         super().__init__(
-            status=401, type=EXCEPTIONS_LINK_MAP[401], title=title, detail=detail, headers=headers, **kwargs
+            status=HTTPStatus.UNAUTHORIZED,
+            type=EXCEPTIONS_LINK_MAP[401],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
 
 
 class PermissionDenied(ProblemException):
-    """Raise when the user does not have the required permissions"""
-
-    def __init__(
-        self, title: str = 'Forbidden', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
-    ):
-        super().__init__(
-            status=403, type=EXCEPTIONS_LINK_MAP[403], title=title, detail=detail, headers=headers, **kwargs
-        )
-
-
-class AlreadyExists(ProblemException):
-    """Raise when the object already exists"""
-
-    def __init__(
-        self, title='Conflict', detail: Optional[str] = None, headers: Optional[Dict] = None, **kwargs
-    ):
-        super().__init__(
-            status=409, type=EXCEPTIONS_LINK_MAP[409], title=title, detail=detail, headers=headers, **kwargs
-        )
-
-
-class Unknown(ProblemException):
-    """Returns a response body and status code for HTTP 500 exception"""
+    """Raise when the user does not have the required permissions."""
 
     def __init__(
         self,
-        title: str = 'Internal Server Error',
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
-        **kwargs,
+        title: str = "Forbidden",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            status=HTTPStatus.FORBIDDEN,
+            type=EXCEPTIONS_LINK_MAP[403],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
+        )
+
+
+class Conflict(ProblemException):
+    """Raise when there is some conflict."""
+
+    def __init__(
+        self,
+        title="Conflict",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
     ):
         super().__init__(
-            status=500, type=EXCEPTIONS_LINK_MAP[500], title=title, detail=detail, headers=headers, **kwargs
+            status=HTTPStatus.CONFLICT,
+            type=EXCEPTIONS_LINK_MAP[409],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
+        )
+
+
+class AlreadyExists(Conflict):
+    """Raise when the object already exists."""
+
+
+class Unknown(ProblemException):
+    """Returns a response body and status code for HTTP 500 exception."""
+
+    def __init__(
+        self,
+        title: str = "Internal Server Error",
+        detail: str | None = None,
+        headers: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            status=HTTPStatus.INTERNAL_SERVER_ERROR,
+            type=EXCEPTIONS_LINK_MAP[500],
+            title=title,
+            detail=detail,
+            headers=headers,
+            **kwargs,
         )
